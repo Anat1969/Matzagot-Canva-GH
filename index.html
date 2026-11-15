@@ -1,0 +1,299 @@
+<title>מוצאת ושולחת</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;700&display=swap">
+<style>
+/* Layout: sticky search bar on top, results list right, message composer left (stacked on phones) */
+:root{
+  --bg:#f6f6f4; --surface:#ffffff; --ink:#14171a; --muted:#5f666d; --line:#d9dcdf; --soft:#ecedee;
+  --accent:#1f3a5f; --accent-ink:#ffffff; --hit:#fff3b8; --err:#9b2c2c; --ok:#2f6b4f;
+  --f-display:"Frank Ruhl Libre",Georgia,serif;
+  --f-body:"Heebo",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111315; --surface:#1a1d20; --ink:#eceef0; --muted:#9aa1a8; --line:#2f353a; --soft:#23272b;
+  --accent:#9db8dc; --accent-ink:#0e1520; --hit:#4a4215; --err:#e59a9a; --ok:#7fc1a0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111315; --surface:#1a1d20; --ink:#eceef0; --muted:#9aa1a8; --line:#2f353a; --soft:#23272b;
+  --accent:#9db8dc; --accent-ink:#0e1520; --hit:#4a4215; --err:#e59a9a; --ok:#7fc1a0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;direction:rtl}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.inner{max-width:1180px;margin:0 auto}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .inner{padding-block:12px;display:grid;gap:10px}
+.head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-family:var(--f-display);font-size:24px;font-weight:700}
+.sub{color:var(--muted);font-size:13px}
+.searchrow{display:flex;gap:8px;flex-wrap:wrap}
+.searchrow input[type=search]{flex:1 1 240px;min-width:0;background:var(--bg);border:1px solid var(--line);padding:10px 12px;border-radius:3px;font-size:16px}
+.btn{background:var(--surface);border:1px solid var(--ink);padding:9px 16px;border-radius:3px;color:var(--ink)}
+.btn.solid{background:var(--ink);color:var(--surface)}
+.btn.ghost{border-color:var(--line);color:var(--muted)}
+.btn[disabled]{opacity:.45;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{background:var(--bg);border:1px solid var(--line);padding:3px 11px;border-radius:20px;font-size:13px;color:var(--muted)}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chips .lbl{font-size:12px;color:var(--muted);margin-inline-end:2px}
+
+.main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;padding-block:18px 60px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.status{font-size:13px;color:var(--muted);margin-bottom:8px;min-height:20px}
+.banner{border:1px solid var(--err);color:var(--err);padding:10px 12px;margin-bottom:10px;background:var(--surface)}
+.list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.row{display:grid;grid-template-columns:auto 76px minmax(0,1fr);gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);padding:8px 12px 8px 10px;border-radius:3px}
+.row.sel{border-color:var(--accent);outline:1px solid var(--accent)}
+.row input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+.thumb{width:76px;height:56px;background:var(--soft);display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:12px}
+.thumb img{max-width:100%;max-height:100%;object-fit:contain}
+.ttl{font-weight:500;line-height:1.35;overflow-wrap:anywhere}
+.ttl mark{background:var(--hit);color:inherit;padding:0 1px}
+.meta{font-size:12.5px;color:var(--muted);display:flex;gap:4px 12px;flex-wrap:wrap;margin-top:2px}
+.meta a{color:var(--accent)}
+.more{margin-top:12px}
+.empty{border:1px dashed var(--line);padding:28px 18px;text-align:center;color:var(--muted);background:var(--surface)}
+.empty b{display:block;color:var(--ink);font-family:var(--f-display);font-size:20px;margin-bottom:4px}
+
+.panel{background:var(--surface);border:1px solid var(--line);padding:16px;display:grid;gap:12px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 150px);border-radius:3px}
+@media (max-width:860px){.panel{position:static}}
+.panel h2{margin:0;font-family:var(--f-display);font-size:20px}
+.fld{display:grid;gap:3px;min-width:0}
+.fld label,.fld .lab{font-size:12px;color:var(--muted)}
+.fld input,.fld textarea{background:var(--bg);border:1px solid var(--line);padding:8px 10px;border-radius:3px;width:100%}
+.fld textarea{min-height:92px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:480px){.two{grid-template-columns:1fr}}
+.seg{display:flex;border:1px solid var(--line);width:max-content;max-width:100%}
+.seg button{background:var(--surface);border:0;padding:6px 14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.picked{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.picked li{display:flex;gap:8px;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--soft);padding:3px 0}
+.picked li span{min-width:0;overflow-wrap:anywhere}
+.picked button{background:none;border:0;color:var(--muted);padding:0 4px;text-decoration:underline;white-space:nowrap}
+.preview{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);padding:12px;font-size:14px;max-height:300px;overflow:auto;overflow-wrap:anywhere;user-select:all}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.note{font-size:12.5px;color:var(--muted)}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 16px;z-index:60;font-size:13px;border-radius:3px}
+</style>
+
+<header class="top wrap">
+  <div class="inner">
+    <div class="head"><h1>מוצאת ושולחת</h1><span class="sub">חיפוש בכל החומרים שלי ב-Canva, ושליחה עם קישור</span></div>
+    <form class="searchrow" id="sform" role="search">
+      <input type="search" id="q" placeholder="מה את מחפשת? למשל: רובע, שילוט, הרצאה, חוות דעת" autocomplete="off" aria-label="חיפוש">
+      <button class="btn solid" type="submit" id="go">חיפוש</button>
+      <button class="btn ghost" type="button" id="recent">האחרונים שעודכנו</button>
+    </form>
+    <div class="chips" id="topics" aria-label="נושאים נפוצים"></div>
+    <div class="chips" id="types" aria-label="סינון לפי סוג"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="inner main">
+    <section aria-label="תוצאות">
+      <div id="banner"></div>
+      <div class="status" id="status" aria-live="polite"></div>
+      <ul class="list" id="list"></ul>
+      <div class="more" id="more"></div>
+    </section>
+
+    <aside class="panel" aria-label="הודעה לשליחה">
+      <h2>הודעה לשליחה</h2>
+      <div id="pickedBox"></div>
+      <div class="two">
+        <div class="fld"><label for="to">שם הנמען</label><input id="to" placeholder="למשל: דנה"></div>
+        <div class="fld"><label for="email">כתובת מייל (לא חובה)</label><input id="email" type="email" dir="ltr" placeholder="name@example.com"></div>
+      </div>
+      <div class="fld"><label for="subj">נושא</label><input id="subj" placeholder="נושא ההודעה"></div>
+      <div class="fld"><label for="intro">פתיחה</label><textarea id="intro" placeholder="משפט או שניים לפני הקישורים"></textarea></div>
+      <div class="fld"><span class="lab">סוג הקישור</span>
+        <div class="seg" role="group" aria-label="סוג קישור">
+          <button type="button" id="lkView" aria-pressed="true">צפייה בלבד</button>
+          <button type="button" id="lkEdit" aria-pressed="false">עריכה</button>
+        </div>
+      </div>
+      <div class="fld"><span class="lab">ההודעה כפי שתישלח</span><div class="preview" id="preview" dir="rtl"></div></div>
+      <div class="acts">
+        <button class="btn solid" id="copyAll" type="button">העתקת ההודעה</button>
+        <button class="btn" id="copyLinks" type="button">העתקת קישורים בלבד</button>
+        <a class="btn" id="mailLink" href="#" target="_blank" rel="noopener">פתיחה במייל</a>
+        <a class="btn" id="waLink" href="#" target="_blank" rel="noopener">פתיחה בוואטסאפ</a>
+      </div>
+      <p class="note">הכפתורים "פתיחה במייל" ו"פתיחה בוואטסאפ" פותחים טיוטה אצלך, ולא שולחים דבר. אם הם לא נפתחים, העתיקי את ההודעה והדביקי.
+        קישור צפייה עובד לנמען רק אם ההרשאות של המסמך ב-Canva מאפשרות לו לראות אותו.</p>
+    </aside>
+  </div>
+</main>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TOPICS = ["אשדוד","רובע","שילוט","הרצאה","מצגת","חוות דעת","סקר","ועדה","מאמר","תכנית"];
+const TYPES = [["","הכול"],["presentation","מצגות"],["doc","מסמכים"],["other","אחר"]];
+
+const S = { items:[], cont:null, query:"", mode:"recent", type:"", busy:false, mcp:null, sel:new Map(), link:"view", seq:0 };
+
+function toast(t){ const el=$("#toast"); el.textContent=t; el.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>el.hidden=true,2400); }
+function store(k,v){ try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)||"null"); localStorage.setItem(k,JSON.stringify(v)); }catch(e){ return null; } }
+const fmtD = sec => sec ? new Date(sec*1000).toLocaleDateString("he-IL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
+function cleanTitle(t){ return String(t||"").replace(/\.(pptx|ppsx|docx|pdf|xlsx)(\.\w+)?$/i,"").trim() || "ללא שם"; }
+function kindOf(it){
+  const ty = it.design_types||[], t=(it.title||"").toLowerCase();
+  if (ty.includes("presentation") || /\.pptx|\.ppsx/.test(t)) return "מצגת";
+  if (ty.includes("doc") || /\.docx|\.pdf/.test(t)) return "מסמך";
+  if (ty.includes("whiteboard")) return "לוח";
+  if (ty.includes("sheet")) return "טבלה";
+  return "אחר";
+}
+function typeBucket(it){ const k=kindOf(it); return k==="מצגת"?"presentation":k==="מסמך"?"doc":"other"; }
+function mark(text){
+  const q=S.query.trim(); const s=esc(text); if(!q || S.mode!=="search") return s;
+  const words=q.split(/\s+/).filter(w=>w.length>1).map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+  if(!words.length) return s;
+  return s.replace(new RegExp("("+words.map(esc).join("|")+")","gi"),"<mark>$1</mark>");
+}
+
+/* ---------- search ---------- */
+function problem(e){
+  const c=e?.code;
+  const map={
+    needs_reauth:"החיבור ל-Canva פג. חברי מחדש את Canva בהגדרות claude.ai תחת Connectors.",
+    server_not_connected:"Canva לא מחובר לחשבון. הוסיפי את Canva בהגדרות claude.ai תחת Connectors.",
+    selection_required:"יש יותר מחיבור Canva אחד. בחרי באיזה להשתמש בחלון ש-Claude פותח.",
+    not_in_manifest:"הגישה ל-Canva לא אושרה לדף הזה. אשרי אותה בתפריט ההרשאות של הדף.",
+    approval_required:"Canva מחכה לאישור שלך. לחצי שוב על חיפוש ואשרי.",
+    blocked_by_policy:"הארגון חוסם את הגישה ל-Canva מהדף הזה.",
+    server_unavailable:"Canva לא הגיב כרגע. נסי שוב בעוד רגע.",
+  };
+  return map[c] || ("החיפוש נכשל"+(e?.message?": "+e.message:"")+".");
+}
+async function run(more){
+  if (S.busy) return;
+  if (!S.mcp){ $("#banner").innerHTML=`<div class="banner">החיבור ל-Canva לא זמין בתצוגה הזו. פתחי את הדף ב-claude.ai.</div>`; return; }
+  const mySeq = more ? S.seq : ++S.seq;
+  S.busy=true; if(!more){ S.items=[]; S.cont=null; } renderStatus("מחפשת…"); $("#banner").innerHTML="";
+  const input = { limit:30, ownership:"any", user_intent:"חיפוש מסמכים בספריית Canva של המשתמשת כדי לשלוח אותם הלאה" };
+  if (S.mode==="search" && S.query.trim()){ input.query=S.query.trim(); input.sort_by="relevance"; } else { input.sort_by="modified_descending"; }
+  if (more && S.cont) input.continuation=S.cont;
+  try {
+    const r = await S.mcp.callTool("Canva","search-designs",input,{cache:false});
+    if (mySeq!==S.seq) return;
+    const p = r.payload||{};
+    S.items = S.items.concat(p.items||[]); S.cont = p.continuation||null;
+  } catch(e){ if (mySeq===S.seq) $("#banner").innerHTML=`<div class="banner">${esc(problem(e))}</div>`; }
+  finally { S.busy=false; renderList(); }
+}
+function search(q){ S.query=q; S.mode = q.trim() ? "search" : "recent"; $("#q").value=q; renderChips(); run(false); }
+
+/* ---------- render ---------- */
+function visible(){ return S.items.filter(it=>!S.type || typeBucket(it)===S.type); }
+function renderStatus(msg){
+  const el=$("#status");
+  if (msg){ el.textContent=msg; return; }
+  const n=visible().length;
+  el.textContent = S.mode==="search" ? `${n} תוצאות עבור "${S.query.trim()}"${S.cont?" (יש עוד)":""}` : `${n} מסמכים, מהעדכני לישן${S.cont?" (יש עוד)":""}`;
+}
+function renderChips(){
+  $("#topics").innerHTML = `<span class="lbl">נושא:</span>` + TOPICS.map(t=>`<button class="chip" type="button" data-topic="${esc(t)}" aria-pressed="${S.mode==="search"&&S.query.trim()===t}">${esc(t)}</button>`).join("");
+  $("#types").innerHTML = `<span class="lbl">סוג:</span>` + TYPES.map(([v,l])=>`<button class="chip" type="button" data-type="${v}" aria-pressed="${S.type===v}">${l}</button>`).join("");
+}
+function renderList(){
+  const list=visible(), L=$("#list");
+  renderStatus();
+  if (!list.length){
+    L.innerHTML = S.busy ? "" : `<li class="empty"><b>${S.mode==="search"?"לא נמצא כלום":"אין מסמכים להצגה"}</b>${S.mode==="search"?"נסי מילה אחרת, מילה קצרה יותר, או נושא מהרשימה.":"נסי חיפוש."}</li>`;
+  } else {
+    L.innerHTML = list.map(it=>{
+      const on=S.sel.has(it.id);
+      return `<li class="row${on?" sel":""}" data-id="${esc(it.id)}">
+        <input type="checkbox" data-pick="${esc(it.id)}" ${on?"checked":""} aria-label="בחירה לשליחה: ${esc(cleanTitle(it.title))}">
+        <div class="thumb">${it.thumbnail?.url?`<img src="${esc(it.thumbnail.url)}" alt="" loading="lazy" onerror="this.remove()">`:""}</div>
+        <div><div class="ttl">${mark(cleanTitle(it.title))}</div>
+          <div class="meta"><span>${esc(kindOf(it))}</span>${it.page_count>1?`<span>${it.page_count} עמודים</span>`:""}<span>עודכן ${fmtD(it.updated_at)}</span>
+          <a href="${esc(it.urls?.view_url||"#")}" target="_blank" rel="noopener">פתיחה</a></div></div></li>`;
+    }).join("");
+  }
+  $("#more").innerHTML = S.cont ? `<button class="btn" type="button" id="moreBtn" ${S.busy?"disabled":""}>טעינת עוד תוצאות</button>` : "";
+}
+function pickedItems(){ return [...S.sel.values()]; }
+function linkOf(it){ return (S.link==="edit" ? it.urls?.edit_url : it.urls?.view_url) || it.urls?.view_url || it.urls?.edit_url || ""; }
+function buildMessage(){
+  const items=pickedItems(); const to=$("#to").value.trim(), intro=$("#intro").value.trim();
+  if(!items.length) return "";
+  const lines=[ to?`שלום ${to},`:"שלום," ];
+  if (intro) intro.split(/\n+/).forEach(l=>l.trim()&&lines.push(l.trim()));
+  lines.push(items.length>1?"הקישורים למסמכים:":"הקישור למסמך:","");
+  items.forEach((it,i)=>{ lines.push(`${items.length>1?(i+1)+". ":""}${cleanTitle(it.title)}`); lines.push(linkOf(it)); lines.push(""); });
+  lines.push("בברכה,","ענת");
+  return lines.join("\n");
+}
+function defaultSubject(){ const n=pickedItems(); return !n.length?"":n.length===1?cleanTitle(n[0].title):`${cleanTitle(n[0].title)} ועוד ${n.length-1}`; }
+let subjTouched=false;
+function renderPanel(){
+  const items=pickedItems();
+  $("#pickedBox").innerHTML = items.length
+    ? `<ul class="picked">${items.map(it=>`<li><span>${esc(cleanTitle(it.title))}</span><button type="button" data-unpick="${esc(it.id)}">הסרה</button></li>`).join("")}</ul>`
+    : `<p class="note">עוד לא נבחר כלום. סמני מסמכים ברשימה, וההודעה תיבנה כאן.</p>`;
+  if (!subjTouched) $("#subj").value = defaultSubject();
+  const msg=buildMessage();
+  $("#preview").textContent = msg || "ההודעה תופיע כאן אחרי שתבחרי מסמך.";
+  const has=!!msg;
+  $("#copyAll").disabled=!has; $("#copyLinks").disabled=!has;
+  const em=$("#email").value.trim(), subj=$("#subj").value.trim();
+  const mail=$("#mailLink"), wa=$("#waLink");
+  mail.href = has ? `mailto:${encodeURIComponent(em)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(msg)}` : "#";
+  wa.href = has ? `https://wa.me/?text=${encodeURIComponent(msg)}` : "#";
+  [mail,wa].forEach(a=>a.style.opacity=has?"":".45");
+  $("#lkView").setAttribute("aria-pressed",S.link==="view"); $("#lkEdit").setAttribute("aria-pressed",S.link==="edit");
+  store("sendDraft",{to:$("#to").value,email:$("#email").value,intro:$("#intro").value});
+}
+async function copy(text,okMsg){
+  if(!text) return;
+  try { await navigator.clipboard.writeText(text); toast(okMsg); }
+  catch(e){ const r=document.createRange(); r.selectNodeContents($("#preview")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("סימנתי את הטקסט. לחצי העתקה במקלדת."); }
+}
+
+/* ---------- events ---------- */
+$("#sform").addEventListener("submit",e=>{ e.preventDefault(); search($("#q").value); });
+$("#recent").addEventListener("click",()=>search(""));
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-topic],[data-type],[data-unpick],#moreBtn,#lkView,#lkEdit,#copyAll,#copyLinks,#mailLink,#waLink");
+  if(!t) return;
+  if (t.dataset.topic) search(t.dataset.topic);
+  else if (t.dataset.type!==undefined && t.hasAttribute("data-type")){ S.type=t.dataset.type; renderChips(); renderList(); }
+  else if (t.dataset.unpick){ S.sel.delete(t.dataset.unpick); renderList(); renderPanel(); }
+  else if (t.id==="moreBtn") run(true);
+  else if (t.id==="lkView"){ S.link="view"; renderPanel(); }
+  else if (t.id==="lkEdit"){ S.link="edit"; renderPanel(); }
+  else if (t.id==="copyAll") copy(buildMessage(),"ההודעה הועתקה");
+  else if (t.id==="copyLinks") copy(pickedItems().map(it=>`${cleanTitle(it.title)}\n${linkOf(it)}`).join("\n\n"),"הקישורים הועתקו");
+  else if ((t.id==="mailLink"||t.id==="waLink") && t.getAttribute("href")==="#") e.preventDefault();
+});
+document.addEventListener("change",e=>{
+  const id=e.target.dataset?.pick; if(!id) return;
+  const it=S.items.find(x=>x.id===id);
+  if (e.target.checked && it) S.sel.set(id,it); else S.sel.delete(id);
+  e.target.closest(".row")?.classList.toggle("sel",e.target.checked); renderPanel();
+});
+["#to","#email","#intro"].forEach(s=>$(s).addEventListener("input",renderPanel));
+$("#subj").addEventListener("input",()=>{ subjTouched=true; renderPanel(); });
+
+/* ---------- boot ---------- */
+const d=store("sendDraft"); if(d){ $("#to").value=d.to||""; $("#email").value=d.email||""; $("#intro").value=d.intro||""; }
+renderChips(); renderPanel(); renderList(); renderStatus("מתחברת ל-Canva…");
+(async()=>{
+  try { S.mcp = await window.claude?.use("mcp"); } catch(e){ S.mcp=null; }
+  if (!S.mcp){ renderStatus(""); $("#banner").innerHTML=`<div class="banner">החיבור ל-Canva לא זמין בתצוגה הזו. פתחי את הדף ישירות ב-claude.ai.</div>`; return; }
+  run(false);
+})();
+})();
+</script>
