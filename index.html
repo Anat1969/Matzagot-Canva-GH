@@ -46,11 +46,20 @@ h1{margin:0;font-family:var(--f-display);font-size:24px;font-weight:700}
 .status{font-size:13px;color:var(--muted);margin-bottom:8px;min-height:20px}
 .banner{border:1px solid var(--err);color:var(--err);padding:10px 12px;margin-bottom:10px;background:var(--surface)}
 .list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
-.row{display:grid;grid-template-columns:auto 76px minmax(0,1fr);gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);padding:8px 12px 8px 10px;border-radius:3px}
+.row{display:grid;grid-template-columns:auto 124px minmax(0,1fr);gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);padding:10px 12px 10px 10px;border-radius:3px}
 .row.sel{border-color:var(--accent);outline:1px solid var(--accent)}
-.row input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
-.thumb{width:76px;height:56px;background:var(--soft);display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:12px}
+.row input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);margin-top:4px}
+.thumb{width:124px;height:94px;background:var(--soft);display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:12px;border:0;padding:0;cursor:zoom-in}
 .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+.thumb.empty0{cursor:default}
+.ra{display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.ra button,.ra a{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;font-size:13px}
+.ra .x{color:var(--err)}
+.ra .ok{color:var(--ok);font-size:13px}
+.rn{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.rn input{flex:1 1 200px;min-width:0;background:var(--bg);border:1px solid var(--line);padding:6px 8px;border-radius:3px}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;display:grid;place-items:center;padding:20px;cursor:zoom-out}
+.lb img{max-width:100%;max-height:90vh;background:#fff}
 .ttl{font-weight:500;line-height:1.35;overflow-wrap:anywhere}
 .ttl mark{background:var(--hit);color:inherit;padding:0 1px}
 .meta{font-size:12.5px;color:var(--muted);display:flex;gap:4px 12px;flex-wrap:wrap;margin-top:2px}
@@ -122,14 +131,16 @@ h1{margin:0;font-family:var(--f-display);font-size:24px;font-weight:700}
       <div class="acts">
         <button class="btn solid" id="copyAll" type="button">העתקת ההודעה</button>
         <button class="btn" id="copyLinks" type="button">העתקת קישורים בלבד</button>
-        <a class="btn" id="mailLink" href="#" target="_blank" rel="noopener">פתיחה במייל</a>
+        <a class="btn" id="gmLink" href="#" target="_blank" rel="noopener">פתיחה ב-Gmail</a>
+        <a class="btn ghost" id="mailLink" href="#" target="_blank" rel="noopener">אפליקציית מייל</a>
         <a class="btn" id="waLink" href="#" target="_blank" rel="noopener">פתיחה בוואטסאפ</a>
       </div>
-      <p class="note">הכפתורים "פתיחה במייל" ו"פתיחה בוואטסאפ" פותחים טיוטה אצלך, ולא שולחים דבר. אם הם לא נפתחים, העתיקי את ההודעה והדביקי.
+      <p class="note">"פתיחה ב-Gmail" ו"פתיחה בוואטסאפ" פותחים טיוטה בלשונית חדשה, ולא שולחים דבר. "אפליקציית מייל" תלוי בהגדרות המחשב ולא תמיד נפתח מתוך הדף. אם משהו לא נפתח, העתיקי את ההודעה והדביקי.
         קישור צפייה עובד לנמען רק אם ההרשאות של המסמך ב-Canva מאפשרות לו לראות אותו.</p>
     </aside>
   </div>
 </main>
+<div id="lbox"></div>
 <div id="toast" class="toast" hidden></div>
 
 <script>
@@ -140,7 +151,13 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const TOPICS = ["אשדוד","רובע","שילוט","הרצאה","מצגת","חוות דעת","סקר","ועדה","מאמר","תכנית"];
 const TYPES = [["","הכול"],["presentation","מצגות"],["doc","מסמכים"],["other","אחר"]];
 
-const S = { items:[], cont:null, query:"", mode:"recent", type:"", busy:false, mcp:null, sel:new Map(), link:"view", seq:0 };
+const S = { items:[], cont:null, query:"", mode:"recent", type:"", busy:false, mcp:null, sel:new Map(), link:"view", seq:0,
+  mem:{}, failed:{}, editing:null, rowMsg:{}, hidden:new Set(store0("hiddenIds")||[]), confirmDel:null };
+function store0(k){ try{ return JSON.parse(localStorage.getItem(k)||"null"); }catch(e){ return null; } }
+const CN="Canva";
+function deepFind(o,pred,d=0){ if(d>6||o==null) return null; if(pred(o)) return o; if(typeof o==="object"){ for(const v of Object.values(o)){ const r=deepFind(v,pred,d+1); if(r!=null) return r; } } return null; }
+function findStr(o,key){ const r=deepFind(o,x=>x&&typeof x==="object"&&typeof x[key]==="string"); return r?r[key]:null; }
+function errText(e){ const c=e?.code; return c==="approval_required"?"Canva מחכה לאישור שלך. לחצי שוב ואשרי.": c==="not_in_manifest"?"הפעולה לא אושרה לדף הזה בתפריט ההרשאות.": c==="needs_reauth"||c==="server_not_connected"?"החיבור ל-Canva פג. חברי מחדש בהגדרות claude.ai.": (e?.message||"הפעולה נכשלה")+""; }
 
 function toast(t){ const el=$("#toast"); el.textContent=t; el.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>el.hidden=true,2400); }
 function store(k,v){ try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)||"null"); localStorage.setItem(k,JSON.stringify(v)); }catch(e){ return null; } }
@@ -195,7 +212,70 @@ async function run(more){
 function search(q){ S.query=q; S.mode = q.trim() ? "search" : "recent"; $("#q").value=q; renderChips(); run(false); }
 
 /* ---------- render ---------- */
-function visible(){ return S.items.filter(it=>!S.type || typeBucket(it)===S.type); }
+function visible(){ return S.items.filter(it=>!S.hidden.has(it.id) && (!S.type || typeBucket(it)===S.type)); }
+
+/* ---------- thumbnails (via read-design, since Canva image hosts are blocked in the page) ---------- */
+let io=null; const Q=[], inQ=new Set(); let running=0;
+function b64Blob(b64,type){ const bin=atob(b64); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return new Blob([a],{type}); }
+function observeThumbs(){
+  if(!("IntersectionObserver" in window)){ document.querySelectorAll("[data-th]").forEach(el=>want(el.dataset.th)); return; }
+  if(!io) io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ want(e.target.dataset.th); io.unobserve(e.target); } }),{rootMargin:"250px"});
+  document.querySelectorAll("[data-th]").forEach(el=>{ if(!S.mem[el.dataset.th]) io.observe(el); });
+}
+function want(id){ if(!S.mcp||S.mem[id]||S.failed[id]||inQ.has(id)) return; inQ.add(id); Q.push(id); pump(); }
+function pump(){ while(running<3&&Q.length){ const id=Q.shift(); running++; fetchThumb(id).finally(()=>{ running--; inQ.delete(id); pump(); }); } }
+function setThumb(id){
+  const src=S.mem[id]; if(!src) return;
+  document.querySelectorAll(`[data-th="${CSS.escape(id)}"]`).forEach(el=>{ el.innerHTML=`<img src="${esc(src)}" alt="">`; el.classList.remove("empty0"); });
+}
+async function fetchThumb(id){
+  try{
+    const r=await S.mcp.callTool(CN,"read-design",{design_id:id,filter:{fields:["thumbnails"],thumbnail_pages:[1]},user_intent:"תמונה מקדימה לזיהוי מסמך ברשימת חיפוש"});
+    const img=(r.content||[]).find(b=>b.type==="image"&&b.data);
+    if(!img){ S.failed[id]=1; markNoThumb(id); return; }
+    S.mem[id]=URL.createObjectURL(b64Blob(img.data,img.mimeType||"image/png")); setThumb(id);
+  }catch(e){ S.failed[id]=1; markNoThumb(id); }
+}
+function markNoThumb(id){ document.querySelectorAll(`[data-th="${CSS.escape(id)}"]`).forEach(el=>{ el.textContent="אין תצוגה"; }); }
+function lightbox(id){ const src=S.mem[id]; if(!src) return; $("#lbox").innerHTML=`<div class="lb" id="lbClose"><img src="${esc(src)}" alt=""></div>`; }
+
+/* ---------- row actions: rename, download, remove ---------- */
+function findTx(p){ const o=deepFind(p,x=>x&&typeof x==="object"&&typeof x.transaction_id==="string"); return o?o.transaction_id:null; }
+async function renameItem(id,title){
+  const it=S.items.find(x=>x.id===id); if(!it||!title.trim()) return;
+  S.rowMsg[id]="שומרת את השם ב-Canva…"; renderList();
+  let tx=null;
+  try{
+    const r=await S.mcp.callTool(CN,"read-design",{design_id:id,open_transaction:true,filter:{fields:["design_metadata"]},user_intent:"שינוי שם מסמך לפי בקשת המשתמשת"},{cache:false});
+    tx=findTx(r.payload)||findTx(r.structuredContent);
+    if(!tx){ const t=(r.content||[]).map(b=>b.text||"").join(" "); const m=t.match(/"?transaction_id"?\s*[:=]\s*"?([A-Za-z0-9_-]{1,50})/); tx=m&&m[1]; }
+    if(!tx) throw {message:"לא התקבל מזהה עריכה מ-Canva. ייתכן שהקובץ אינו ניתן לעריכה."};
+    await S.mcp.callTool(CN,"edit-design",{transaction_id:tx,page_index:1,operations:[{type:"update_title",title:title.trim()}],finalize:"keep_open",user_intent:"שינוי שם מסמך"},{cache:false});
+    await S.mcp.callTool(CN,"edit-design",{transaction_id:tx,finalize:"commit",user_intent:"שמירת שם חדש למסמך לפי אישור המשתמשת"},{cache:false});
+    it.title=title.trim(); S.editing=null; S.rowMsg[id]="השם נשמר ב-Canva.";
+  }catch(e){
+    if(tx){ try{ await S.mcp.callTool(CN,"edit-design",{transaction_id:tx,finalize:"cancel",user_intent:"ביטול שינוי שם שנכשל"},{cache:false}); }catch(_){} }
+    S.rowMsg[id]="השם לא שונה: "+errText(e);
+  }
+  renderList(); renderPanel();
+}
+async function exportItem(id,fmt){
+  const it=S.items.find(x=>x.id===id); if(!it) return;
+  S.rowMsg[id]="מכינה קובץ "+fmt.toUpperCase()+"…"; delete S.dl?.[id]; renderList();
+  try{
+    const r=await S.mcp.callTool(CN,"export-design",{design_id:id,format:{type:fmt},user_intent:"הורדת מסמך כקובץ לשליחה או לשמירה"},{cache:false});
+    let url=findStr(r.payload,"url")||findStr(r.payload,"download_url")||findStr(r.structuredContent,"url");
+    if(!url){ const t=(r.content||[]).map(b=>b.text||"").join(" "); const m=t.match(/https?:\/\/[^\s"'<>\\)]+/); url=m&&m[0]; }
+    if(!url) throw {message:"Canva לא החזיר קישור להורדה."};
+    (S.dl=S.dl||{})[id]={url,fmt}; S.rowMsg[id]="";
+  }catch(e){ S.rowMsg[id]="ההורדה נכשלה: "+errText(e); }
+  renderList();
+}
+function hideItem(id){
+  S.hidden.add(id); S.sel.delete(id); S.confirmDel=null;
+  try{ localStorage.setItem("hiddenIds",JSON.stringify([...S.hidden])); }catch(e){}
+  renderList(); renderPanel(); toast("הוסר מהרשימה. במסמך ב-Canva לא נגעתי.");
+}
 function renderStatus(msg){
   const el=$("#status");
   if (msg){ el.textContent=msg; return; }
@@ -216,12 +296,21 @@ function renderList(){
       const on=S.sel.has(it.id);
       return `<li class="row${on?" sel":""}" data-id="${esc(it.id)}">
         <input type="checkbox" data-pick="${esc(it.id)}" ${on?"checked":""} aria-label="בחירה לשליחה: ${esc(cleanTitle(it.title))}">
-        <div class="thumb">${it.thumbnail?.url?`<img src="${esc(it.thumbnail.url)}" alt="" loading="lazy" onerror="this.remove()">`:""}</div>
+        <button type="button" class="thumb${S.mem[it.id]?"":" empty0"}" data-th="${esc(it.id)}" data-zoom="${esc(it.id)}" aria-label="הגדלת תצוגה מקדימה">${S.mem[it.id]?`<img src="${esc(S.mem[it.id])}" alt="">`:(S.failed[it.id]?"אין תצוגה":"טוענת…")}</button>
         <div><div class="ttl">${mark(cleanTitle(it.title))}</div>
-          <div class="meta"><span>${esc(kindOf(it))}</span>${it.page_count>1?`<span>${it.page_count} עמודים</span>`:""}<span>עודכן ${fmtD(it.updated_at)}</span>
-          <a href="${esc(it.urls?.view_url||"#")}" target="_blank" rel="noopener">פתיחה</a></div></div></li>`;
+          <div class="meta"><span>${esc(kindOf(it))}</span>${it.page_count>1?`<span>${it.page_count} עמודים</span>`:""}<span>עודכן ${fmtD(it.updated_at)}</span></div>
+          ${S.editing===it.id?`<div class="rn"><input id="rnIn" value="${esc(cleanTitle(it.title)==="ללא שם"?"":it.title)}" aria-label="שם חדש"><button class="btn solid" type="button" data-rnsave="${esc(it.id)}">שמירה גם ב-Canva</button><button class="btn ghost" type="button" data-rncancel="1">ביטול</button></div>`:""}
+          <div class="ra"><a href="${esc(it.urls?.edit_url||"#")}" target="_blank" rel="noopener">פתיחה ב-Canva</a>
+            <button type="button" data-rename="${esc(it.id)}">שינוי שם</button>
+            <button type="button" data-exp="${esc(it.id)}" data-fmt="${typeBucket(it)==="presentation"?"pptx":"pdf"}">הורדה ${typeBucket(it)==="presentation"?"PPTX":"PDF"}</button>
+            ${typeBucket(it)==="presentation"?`<button type="button" data-exp="${esc(it.id)}" data-fmt="pdf">הורדה PDF</button>`:""}
+            ${S.confirmDel===it.id?`<span class="ok" style="color:var(--err)">להסיר מהרשימה? (המסמך ב-Canva נשאר)</span><button class="x" type="button" data-delyes="${esc(it.id)}">כן, להסיר</button><button type="button" data-delno="1">לא</button>`:`<button class="x" type="button" data-del="${esc(it.id)}" aria-label="הסרה מהרשימה">X הסרה</button>`}
+          </div>
+          ${S.dl?.[it.id]?`<div class="ra"><a href="${esc(S.dl[it.id].url)}" target="_blank" rel="noopener">הקובץ מוכן: לחצי להורדה (${esc(S.dl[it.id].fmt.toUpperCase())})</a></div>`:""}
+          ${S.rowMsg[it.id]?`<div class="note">${esc(S.rowMsg[it.id])}</div>`:""}</div></li>`;
     }).join("");
   }
+  observeThumbs();
   $("#more").innerHTML = S.cont ? `<button class="btn" type="button" id="moreBtn" ${S.busy?"disabled":""}>טעינת עוד תוצאות</button>` : "";
 }
 function pickedItems(){ return [...S.sel.values()]; }
@@ -249,10 +338,11 @@ function renderPanel(){
   const has=!!msg;
   $("#copyAll").disabled=!has; $("#copyLinks").disabled=!has;
   const em=$("#email").value.trim(), subj=$("#subj").value.trim();
-  const mail=$("#mailLink"), wa=$("#waLink");
+  const mail=$("#mailLink"), wa=$("#waLink"), gm=$("#gmLink");
   mail.href = has ? `mailto:${encodeURIComponent(em)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(msg)}` : "#";
+  gm.href = has ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(em)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(msg)}` : "#";
   wa.href = has ? `https://wa.me/?text=${encodeURIComponent(msg)}` : "#";
-  [mail,wa].forEach(a=>a.style.opacity=has?"":".45");
+  [mail,wa,gm].forEach(a=>a.style.opacity=has?"":".45");
   $("#lkView").setAttribute("aria-pressed",S.link==="view"); $("#lkEdit").setAttribute("aria-pressed",S.link==="edit");
   store("sendDraft",{to:$("#to").value,email:$("#email").value,intro:$("#intro").value});
 }
@@ -266,9 +356,18 @@ async function copy(text,okMsg){
 $("#sform").addEventListener("submit",e=>{ e.preventDefault(); search($("#q").value); });
 $("#recent").addEventListener("click",()=>search(""));
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-topic],[data-type],[data-unpick],#moreBtn,#lkView,#lkEdit,#copyAll,#copyLinks,#mailLink,#waLink");
+  const t=e.target.closest("[data-topic],[data-type],[data-unpick],#moreBtn,#lkView,#lkEdit,#copyAll,#copyLinks,#mailLink,#waLink,#gmLink,[data-zoom],#lbClose,[data-rename],[data-rnsave],[data-rncancel],[data-exp],[data-del],[data-delyes],[data-delno]");
   if(!t) return;
-  if (t.dataset.topic) search(t.dataset.topic);
+  if (t.dataset.zoom) lightbox(t.dataset.zoom);
+  else if (t.id==="lbClose") $("#lbox").innerHTML="";
+  else if (t.dataset.rename){ S.editing=t.dataset.rename; renderList(); $("#rnIn")?.focus(); }
+  else if (t.dataset.rncancel){ S.editing=null; renderList(); }
+  else if (t.dataset.rnsave) renameItem(t.dataset.rnsave,$("#rnIn").value);
+  else if (t.dataset.exp) exportItem(t.dataset.exp,t.dataset.fmt);
+  else if (t.dataset.del){ S.confirmDel=t.dataset.del; renderList(); }
+  else if (t.dataset.delno){ S.confirmDel=null; renderList(); }
+  else if (t.dataset.delyes) hideItem(t.dataset.delyes);
+  else if (t.dataset.topic) search(t.dataset.topic);
   else if (t.dataset.type!==undefined && t.hasAttribute("data-type")){ S.type=t.dataset.type; renderChips(); renderList(); }
   else if (t.dataset.unpick){ S.sel.delete(t.dataset.unpick); renderList(); renderPanel(); }
   else if (t.id==="moreBtn") run(true);
@@ -276,7 +375,7 @@ document.addEventListener("click",e=>{
   else if (t.id==="lkEdit"){ S.link="edit"; renderPanel(); }
   else if (t.id==="copyAll") copy(buildMessage(),"ההודעה הועתקה");
   else if (t.id==="copyLinks") copy(pickedItems().map(it=>`${cleanTitle(it.title)}\n${linkOf(it)}`).join("\n\n"),"הקישורים הועתקו");
-  else if ((t.id==="mailLink"||t.id==="waLink") && t.getAttribute("href")==="#") e.preventDefault();
+  else if ((t.id==="mailLink"||t.id==="waLink"||t.id==="gmLink") && t.getAttribute("href")==="#") e.preventDefault();
 });
 document.addEventListener("change",e=>{
   const id=e.target.dataset?.pick; if(!id) return;
